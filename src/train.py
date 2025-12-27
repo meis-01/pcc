@@ -73,7 +73,7 @@ def main():
     ap.add_argument("--train_size", type=int, default=1000)
     ap.add_argument("--val_size", type=int, default=200)
     ap.add_argument("--test_size", type=int, default=200)
-    ap.add_argument("--batch_size", type=int, default=256)
+    ap.add_argument("--batch_size", type=int, default=32)
     ap.add_argument("--epochs", type=int, default=50)
     ap.add_argument("--lr", type=float, default=2e-3)
     ap.add_argument("--seed", type=int, default=0)
