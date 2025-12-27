@@ -4,25 +4,28 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
+
 def _gaussian_kernel1d(sigma: float, radius: int):
-    x = torch.arange(-radius, radius+1, dtype=torch.float32)
-    k = torch.exp(-0.5*(x/sigma)**2)
+    x = torch.arange(-radius, radius + 1, dtype=torch.float32)
+    k = torch.exp(-0.5 * (x / sigma) ** 2)
     k = k / k.sum()
     return k
+
 
 def gaussian_blur(img: torch.Tensor, sigma: float) -> torch.Tensor:
     """img: (H,W) float32"""
     if sigma <= 0:
         return img
-    radius = max(1, int(3*sigma))
+    radius = max(1, int(3 * sigma))
     k = _gaussian_kernel1d(sigma, radius).to(img.device)
     # separable conv
     img2 = img[None, None, :, :]  # 1x1xHxW
-    kx = k.view(1,1,1,-1)
-    ky = k.view(1,1,-1,1)
+    kx = k.view(1, 1, 1, -1)
+    ky = k.view(1, 1, -1, 1)
     img2 = torch.nn.functional.conv2d(img2, kx, padding=(0, radius))
     img2 = torch.nn.functional.conv2d(img2, ky, padding=(radius, 0))
-    return img2[0,0]
+    return img2[0, 0]
+
 
 def highpass_noise(shape, sigma_low: float, scale: float, device):
     """White noise -> remove low-freq component by subtracting blur -> scale."""
@@ -31,6 +34,7 @@ def highpass_noise(shape, sigma_low: float, scale: float, device):
     hp = n - low
     hp = hp / (hp.std() + 1e-6) * scale
     return hp
+
 
 def quantile_uniformize_phase(theta: torch.Tensor) -> torch.Tensor:
     """
@@ -41,32 +45,37 @@ def quantile_uniformize_phase(theta: torch.Tensor) -> torch.Tensor:
     idx = torch.argsort(flat)
     # Uniform targets in (-pi, pi]
     n = flat.numel()
-    targets = torch.linspace(-math.pi, math.pi, steps=n, device=theta.device, dtype=theta.dtype)
+    targets = torch.linspace(
+        -math.pi, math.pi, steps=n, device=theta.device, dtype=theta.dtype
+    )
     out = torch.empty_like(flat)
     out[idx] = targets
     return out.view_as(theta)
 
+
 def wrap_pi(theta: torch.Tensor) -> torch.Tensor:
-    return (theta + math.pi) % (2*math.pi) - math.pi
+    return (theta + math.pi) % (2 * math.pi) - math.pi
+
 
 @dataclass
 class PCCConfig:
     N: int = 128
     # A3 amplitude params
-    amp_radial_decay: float = 2.2      # larger -> stronger decay
-    amp_smooth_sigma: float = 6.0      # tissue variation smoothness
-    amp_range: tuple = (0.7, 1.4)      # multiplicative tissue range
+    amp_radial_decay: float = 2.2  # larger -> stronger decay
+    amp_smooth_sigma: float = 6.0  # tissue variation smoothness
+    amp_range: tuple = (0.7, 1.4)  # multiplicative tissue range
     # phase params
-    phase_smooth_sigma: float = 10.0   # coherence scale (bigger -> smoother)
-    incoh_highpass_sigma: float = 4.0  # low-sigma blur for high-pass extraction
-    incoh_scale: float = 0.9           # scramble strength (radians)
+    phase_smooth_sigma: float = 2.0  # coherence scale (bigger -> smoother)
+    incoh_highpass_sigma: float = 16.0  # low-sigma blur for high-pass extraction
+    incoh_scale: float = 0.2  # scramble strength (radians)
     global_phase: bool = True
     uniformize_phase_hist: bool = True
     # nuisances
-    translate_px: int = 8
-    rotate_deg: float = 10.0
-    noise_std: float = 0.00            # complex noise std (optional)
-    renorm_amp: bool = False           # if True, rescale to keep amplitude distribution tight
+    translate_px: int = 16
+    rotate_deg: float = 30.0
+    noise_std: float = 0.1  # complex noise std (optional)
+    renorm_amp: bool = False  # if True, rescale to keep amplitude distribution tight
+
 
 def _make_coords(N, device):
     xs = torch.linspace(-1, 1, steps=N, device=device)
@@ -74,6 +83,7 @@ def _make_coords(N, device):
     yy, xx = torch.meshgrid(ys, xs, indexing="ij")
     r = torch.sqrt(xx**2 + yy**2)
     return xx, yy, r
+
 
 def _rand_rotate(img: torch.Tensor, max_deg: float):
     if max_deg <= 0:
@@ -83,18 +93,29 @@ def _rand_rotate(img: torch.Tensor, max_deg: float):
     c, s = torch.cos(rad), torch.sin(rad)
     # affine grid for single-channel (H,W) -> add batch/channel
     H, W = img.shape
-    theta = torch.tensor([[c, -s, 0.0],[s, c, 0.0]], device=img.device, dtype=img.dtype).unsqueeze(0)
-    grid = torch.nn.functional.affine_grid(theta, size=(1,1,H,W), align_corners=False)
-    out = torch.nn.functional.grid_sample(img.view(1,1,H,W), grid, mode="bilinear",
-                                          padding_mode="zeros", align_corners=False)
-    return out[0,0]
+    theta = torch.tensor(
+        [[c, -s, 0.0], [s, c, 0.0]], device=img.device, dtype=img.dtype
+    ).unsqueeze(0)
+    grid = torch.nn.functional.affine_grid(
+        theta, size=(1, 1, H, W), align_corners=False
+    )
+    out = torch.nn.functional.grid_sample(
+        img.view(1, 1, H, W),
+        grid,
+        mode="bilinear",
+        padding_mode="zeros",
+        align_corners=False,
+    )
+    return out[0, 0]
+
 
 def _rand_translate(img: torch.Tensor, max_px: int):
     if max_px <= 0:
         return img
-    tx = int(torch.randint(-max_px, max_px+1, (1,)).item())
-    ty = int(torch.randint(-max_px, max_px+1, (1,)).item())
-    return torch.roll(img, shifts=(ty, tx), dims=(0,1))
+    tx = int(torch.randint(-max_px, max_px + 1, (1,)).item())
+    ty = int(torch.randint(-max_px, max_px + 1, (1,)).item())
+    return torch.roll(img, shifts=(ty, tx), dims=(0, 1))
+
 
 def make_sample(cfg: PCCConfig, y: int, device="cpu"):
     """
@@ -108,7 +129,7 @@ def make_sample(cfg: PCCConfig, y: int, device="cpu"):
 
     # ---- A3 amplitude: radial envelope * smooth tissue variation ----
     radial = torch.exp(-cfg.amp_radial_decay * (r**2))
-    tissue = torch.randn((N,N), device=device)
+    tissue = torch.randn((N, N), device=device)
     tissue = gaussian_blur(tissue, cfg.amp_smooth_sigma)
     tissue = (tissue - tissue.min()) / (tissue.max() - tissue.min() + 1e-6)
     lo, hi = cfg.amp_range
@@ -118,7 +139,7 @@ def make_sample(cfg: PCCConfig, y: int, device="cpu"):
     A = A / (A.mean() + 1e-6)
 
     # ---- coherent base phase ----
-    psi = torch.randn((N,N), device=device)
+    psi = torch.randn((N, N), device=device)
     psi = gaussian_blur(psi, cfg.phase_smooth_sigma)
     psi = psi / (psi.std() + 1e-6)
     # scale to cover roughly [-pi, pi]
@@ -130,7 +151,12 @@ def make_sample(cfg: PCCConfig, y: int, device="cpu"):
     if y == 0:
         theta = psi
     else:
-        eta = highpass_noise((N,N), sigma_low=cfg.incoh_highpass_sigma, scale=cfg.incoh_scale, device=device)
+        eta = highpass_noise(
+            (N, N),
+            sigma_low=cfg.incoh_highpass_sigma,
+            scale=cfg.incoh_scale,
+            device=device,
+        )
         theta = psi + eta
 
     theta = wrap_pi(theta)
@@ -151,7 +177,9 @@ def make_sample(cfg: PCCConfig, y: int, device="cpu"):
     z = A * torch.exp(1j * theta)
 
     if cfg.noise_std > 0:
-        noise = (torch.randn((N,N), device=device) + 1j*torch.randn((N,N), device=device)) * cfg.noise_std
+        noise = (
+            torch.randn((N, N), device=device) + 1j * torch.randn((N, N), device=device)
+        ) * cfg.noise_std
         z = z + noise
         if cfg.renorm_amp:
             # preserve mean amplitude roughly
@@ -159,6 +187,7 @@ def make_sample(cfg: PCCConfig, y: int, device="cpu"):
             z = z / (amp.mean() + 1e-6) * (A.mean() + 1e-6)
 
     return z.to(torch.complex64), A.to(torch.float32), theta.to(torch.float32)
+
 
 class PCCDataset(Dataset):
     def __init__(self, size: int, cfg: PCCConfig, seed: int = 0):
