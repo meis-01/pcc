@@ -4,7 +4,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from .dataset import PCCDataset, PCCConfig
-from .models import RealCNN, ComplexCNN
+from .models import RealCNN, ComplexCNN, RealConstrainedComplexCNN
 from .utils import set_seed, device, accuracy, save_json
 
 
@@ -14,11 +14,12 @@ def batch_to_inputs(batch, model_kind: str):
     if model_kind == "mag":
         x = A.unsqueeze(1)  # (B,1,H,W)
         return (x,), y
-    if model_kind == "R2":
+    if model_kind in ["R2", "R2c"]:
         xr = z.real.unsqueeze(1)
         xi = z.imag.unsqueeze(1)
         x = torch.cat([xr, xi], dim=1)
         return (x,), y
+
     if model_kind == "cossin":
         x1 = torch.cos(theta).unsqueeze(1)
         x2 = torch.sin(theta).unsqueeze(1)
@@ -37,6 +38,8 @@ def make_model(model_kind: str):
         return RealCNN(in_ch=1, width=32)
     if model_kind == "R2":
         return RealCNN(in_ch=2, width=32)
+    if model_kind == "R2c":  # <- NEW constrained-real model
+        return RealConstrainedComplexCNN(in_ch_complex=1, width=24)
     if model_kind == "cossin":
         return RealCNN(in_ch=3, width=32)
     if model_kind == "complex":
@@ -64,14 +67,14 @@ def eval_loader(model, loader, model_kind: str, dev):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument(
-        "--model", choices=["mag", "R2", "cossin", "complex"], default="complex"
+        "--model", choices=["mag", "R2", "R2c", "cossin", "complex"], default="complex"
     )
     ap.add_argument("--N", type=int, default=128)
-    ap.add_argument("--train_size", type=int, default=5000)
-    ap.add_argument("--val_size", type=int, default=2000)
-    ap.add_argument("--test_size", type=int, default=2000)
+    ap.add_argument("--train_size", type=int, default=1000)
+    ap.add_argument("--val_size", type=int, default=200)
+    ap.add_argument("--test_size", type=int, default=200)
     ap.add_argument("--batch_size", type=int, default=256)
-    ap.add_argument("--epochs", type=int, default=10)
+    ap.add_argument("--epochs", type=int, default=50)
     ap.add_argument("--lr", type=float, default=2e-3)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--run_dir", type=str, default="runs")
