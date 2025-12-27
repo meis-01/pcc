@@ -14,6 +14,11 @@ def batch_to_inputs(batch, model_kind: str):
     if model_kind == "mag":
         x = A.unsqueeze(1)  # (B,1,H,W)
         return (x,), y
+    if model_kind == "R2":
+        xr = z.real.unsqueeze(1)
+        xi = z.imag.unsqueeze(1)
+        x = torch.cat([xr, xi], dim=1)
+        return (x,), y
     if model_kind == "cossin":
         x1 = torch.cos(theta).unsqueeze(1)
         x2 = torch.sin(theta).unsqueeze(1)
@@ -30,6 +35,8 @@ def batch_to_inputs(batch, model_kind: str):
 def make_model(model_kind: str):
     if model_kind == "mag":
         return RealCNN(in_ch=1, width=32)
+    if model_kind == "R2":
+        return RealCNN(in_ch=2, width=32)
     if model_kind == "cossin":
         return RealCNN(in_ch=3, width=32)
     if model_kind == "complex":
@@ -56,13 +63,15 @@ def eval_loader(model, loader, model_kind: str, dev):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", choices=["mag", "cossin", "complex"], default="complex")
+    ap.add_argument(
+        "--model", choices=["mag", "R2", "cossin", "complex"], default="complex"
+    )
     ap.add_argument("--N", type=int, default=128)
-    ap.add_argument("--train_size", type=int, default=2000)
-    ap.add_argument("--val_size", type=int, default=200)
-    ap.add_argument("--test_size", type=int, default=500)
-    ap.add_argument("--batch_size", type=int, default=64)
-    ap.add_argument("--epochs", type=int, default=20)
+    ap.add_argument("--train_size", type=int, default=5000)
+    ap.add_argument("--val_size", type=int, default=2000)
+    ap.add_argument("--test_size", type=int, default=2000)
+    ap.add_argument("--batch_size", type=int, default=256)
+    ap.add_argument("--epochs", type=int, default=10)
     ap.add_argument("--lr", type=float, default=2e-3)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--run_dir", type=str, default="runs")
@@ -118,7 +127,6 @@ def main():
         t0 = time.time()
         running_loss, running_acc, n = 0.0, 0.0, 0
         for ix, batch in enumerate(train_loader):
-            print(f"  Batch {ix+1}/{len(train_loader)}", end="\r")
             batch = [b.to(dev) if torch.is_tensor(b) else b for b in batch]
             inputs, y = batch_to_inputs(batch, args.model)
 
@@ -132,7 +140,14 @@ def main():
             running_loss += loss.item() * bs
             running_acc += (torch.argmax(logits, dim=1) == y).float().sum().item()
             n += bs
-
+            if torch.isnan(loss):
+                ending = "\n"
+            else:
+                ending = "\r"
+            print(
+                f"  Batch {ix+1}/{len(train_loader)} -- loss: {loss.item():.4f} running_loss: {running_loss:.4f} n {n} normed_loss: {running_loss/n:.4f}",
+                end=ending,
+            )
         tr_loss = running_loss / n
         tr_acc = running_acc / n
         va_loss, va_acc = eval_loader(model, val_loader, args.model, dev)
@@ -154,6 +169,8 @@ def main():
                 "sec": time.time() - t0,
             }
         )
+        # Flush the line to clear any leftover '\r' output
+        print(" " * 80, end="\r", flush=True)
         print(
             f"Epoch {epoch:02d} | train acc {tr_acc:.3f} loss {tr_loss:.3f} | val acc {va_acc:.3f} loss {va_loss:.3f}"
         )
