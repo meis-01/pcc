@@ -15,9 +15,11 @@ Key properties:
 - Label signal is **only in spatial phase relations**
 
 ## Models included
-- **R1 (doomed):** real CNN on magnitude only |z|
-- **R2 (real-fair):** real CNN on (cos θ, sin θ) (+ optional amplitude channel)
-- **C1 (complex):** complex CNN using complex convolutions + modReLU, trained on complex input z
+- **mag (doomed):** real CNN on magnitude only |z|
+- **R2:** real CNN on real and imaginary components as input channels
+- **R2c:** real CNN on real and imaginary components as input channels constraind on convolution similar to complex (preserves rotation)
+- **cossin (real-fair):** real CNN on (cos θ, sin θ) (+ optional amplitude channel)
+- **complex:** complex CNN using complex convolutions + modReLU, trained on complex input z
 
 ## Quickstart
 
