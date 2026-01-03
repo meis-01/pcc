@@ -45,15 +45,6 @@ To run the default training:
 python -m pcc.train.main
 ```
 
-
-### 3) Sample-efficiency sweep
-
-```bash
-python -m src.sweep --model complex --N 128 --train_sizes 500,1000,2000,5000,10000,20000
-```
-
-Outputs are written to `runs/` with a JSON summary and the best checkpoint.
-
 ## Notes
 
 - This benchmark is intentionally synthetic but MRI-inspired: complex fields with controlled amplitude and phase behavior.
