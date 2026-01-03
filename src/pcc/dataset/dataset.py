@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import math
 import torch
 from torch.utils.data import Dataset
+from pcc.params import PCCConfig
 
 # ---------------- RNG helpers ----------------
 
@@ -103,28 +104,6 @@ def _apply_rotate(img: torch.Tensor, rad: torch.Tensor):
 
 def _apply_translate(img: torch.Tensor, tx: int, ty: int):
     return torch.roll(img, shifts=(ty, tx), dims=(0, 1))
-
-
-# ---------------- Config ----------------
-
-
-@dataclass
-class PCCConfig:
-    N: int = 128
-    amp_radial_decay: float = 2.2
-    amp_smooth_sigma: float = 6.0
-    amp_range: tuple = (0.7, 1.4)
-
-    phase_smooth_sigma: float = 2.0
-    incoh_highpass_sigma: float = 16.0
-    incoh_scale: float = 0.2
-    global_phase: bool = True
-    uniformize_phase_hist: bool = True
-
-    translate_px: int = 16
-    rotate_deg: float = 30.0
-    noise_std: float = 0.1
-    renorm_amp: bool = False
 
 
 # ---------------- Deterministic sample ----------------

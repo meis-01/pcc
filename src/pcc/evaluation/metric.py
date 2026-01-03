@@ -1,7 +1,8 @@
 import argparse
 import torch
-from .dataset import PCCConfig, make_sample
+from pcc.dataset.dataset import PCCConfig, make_sample
 import math
+
 
 def phase_coherence_index(theta: torch.Tensor) -> float:
     """
@@ -11,11 +12,12 @@ def phase_coherence_index(theta: torch.Tensor) -> float:
     # wrap differences via complex exponentials
     z = torch.exp(1j * theta)
     # neighbor products measure alignment
-    prod_x = z[:,1:] * torch.conj(z[:,:-1])
-    prod_y = z[1:,:] * torch.conj(z[:-1,:])
+    prod_x = z[:, 1:] * torch.conj(z[:, :-1])
+    prod_y = z[1:, :] * torch.conj(z[:-1, :])
     # average magnitude of mean phasor
     m = torch.abs(torch.mean(torch.cat([prod_x.flatten(), prod_y.flatten()])))
     return float(m.item())
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -32,8 +34,13 @@ def main():
         c1.append(phase_coherence_index(th1))
 
     print("Coherence index (mean±std)")
-    print(f"Class 0 coherent:   {sum(c0)/len(c0):.4f} ± {torch.tensor(c0).std().item():.4f}")
-    print(f"Class 1 incoherent: {sum(c1)/len(c1):.4f} ± {torch.tensor(c1).std().item():.4f}")
+    print(
+        f"Class 0 coherent:   {sum(c0)/len(c0):.4f} ± {torch.tensor(c0).std().item():.4f}"
+    )
+    print(
+        f"Class 1 incoherent: {sum(c1)/len(c1):.4f} ± {torch.tensor(c1).std().item():.4f}"
+    )
+
 
 if __name__ == "__main__":
     main()
