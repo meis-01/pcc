@@ -1,15 +1,13 @@
 # holoviews+panel UI to explore PCCConfig and plot generated samples
 # pip install panel holoviews bokeh torch numpy
-from dataclasses import dataclass
-import math
 import numpy as np
-import torch
-
 import holoviews as hv
 import panel as pn
 import param
-from .dataset import PCCConfig
-from .dataset import make_sample
+import torch
+from pcc.dataset.dataset import make_sample, _make_generator
+from pcc.evaluation.metric import phase_coherence_index
+from pcc.params import PCCConfig
 
 hv.extension("bokeh")
 pn.extension()
@@ -24,6 +22,7 @@ def _angle(z: torch.Tensor):
 
 
 class PCCExplorer(param.Parameterized):
+    pcc = PCCConfig()
     # --- sample controls ---
     y = param.ObjectSelector(default=0, objects=[0, 1], doc="Class label")
     seed = param.Integer(default=0, bounds=(0, 999999), doc="Reproducibility seed")
@@ -32,25 +31,29 @@ class PCCExplorer(param.Parameterized):
     )
 
     # --- config controls (mirrors PCCConfig) ---
-    N = param.Integer(default=128, bounds=(32, 512), step=16)
+    N = param.Integer(default=pcc.N, bounds=(32, 512), step=16)
 
-    amp_radial_decay = param.Number(default=2.2, bounds=(0.1, 10.0))
-    amp_smooth_sigma = param.Number(default=6.0, bounds=(0.0, 30.0))
-    amp_range_lo = param.Number(default=0.7, bounds=(0.0, 3.0))
-    amp_range_hi = param.Number(default=1.4, bounds=(0.0, 3.0))
+    amp_radial_decay = param.Number(default=pcc.amp_radial_decay, bounds=(0.1, 10.0))
+    amp_smooth_sigma = param.Number(default=pcc.amp_smooth_sigma, bounds=(0.0, 30.0))
+    amp_range_lo = param.Number(default=pcc.amp_range[0], bounds=(0.0, 3.0))
+    amp_range_hi = param.Number(default=pcc.amp_range[1], bounds=(0.0, 3.0))
 
-    phase_smooth_sigma = param.Number(default=10.0, bounds=(0.0, 60.0))
-    incoh_highpass_sigma = param.Number(default=4.0, bounds=(0.0, 30.0))
-    incoh_scale = param.Number(default=0.9, bounds=(0.0, 6.0))
+    phase_smooth_sigma = param.Number(
+        default=pcc.phase_smooth_sigma, bounds=(0.0, 60.0)
+    )
+    incoh_highpass_sigma = param.Number(
+        default=pcc.incoh_highpass_sigma, bounds=(0.0, 30.0)
+    )
+    incoh_scale = param.Number(default=pcc.incoh_scale, bounds=(0.0, 6.0))
 
-    global_phase = param.Boolean(default=True)
-    uniformize_phase_hist = param.Boolean(default=True)
+    global_phase = param.Boolean(default=pcc.global_phase)
+    uniformize_phase_hist = param.Boolean(default=pcc.uniformize_phase_hist)
 
-    translate_px = param.Integer(default=8, bounds=(0, 64))
-    rotate_deg = param.Number(default=10.0, bounds=(0.0, 90.0))
+    translate_px = param.Integer(default=pcc.translate_px, bounds=(0, 64))
+    rotate_deg = param.Number(default=pcc.rotate_deg, bounds=(0.0, 90.0))
 
-    noise_std = param.Number(default=0.0, bounds=(0.0, 1.0))
-    renorm_amp = param.Boolean(default=False)
+    noise_std = param.Number(default=pcc.noise_std, bounds=(0.0, 1.0))
+    renorm_amp = param.Boolean(default=pcc.renorm_amp)
 
     # --- display controls ---
     show_complex_plane = param.Boolean(default=True)
@@ -79,11 +82,9 @@ class PCCExplorer(param.Parameterized):
 
     def _make(self):
         # make all randomness deterministic w.r.t. seed
-        torch.manual_seed(int(self.seed))
-        np.random.seed(int(self.seed))
-
+        g = _make_generator(int(self.seed), idx=0, device=self.device)
         cfg = self._cfg()
-        z, A, theta = make_sample(cfg, y=int(self.y), device=self.device)
+        z, A, theta = make_sample(cfg, y=int(self.y), device=self.device, g=g)
 
         # return numpy versions for plotting
         return cfg, _to_numpy(z), _to_numpy(A), _to_numpy(theta)
@@ -120,7 +121,27 @@ class PCCExplorer(param.Parameterized):
             width=360,
             height=360,
         )
+        # Amplitude histogram
+        amp_hist = hv.Histogram(np.histogram(A_np.flatten(), bins=100)).opts(
+            title="Amplitude Histogram",
+            xlabel="A",
+            ylabel="Count",
+            width=360,
+            height=360,
+            tools=["hover"],
+        )
 
+        # Phase histogram
+        phase_hist = hv.Histogram(
+            np.histogram(th_np.flatten(), bins=100, range=[-np.pi, np.pi])
+        ).opts(
+            title="Phase Histogram",
+            xlabel="θ",
+            ylabel="Count",
+            width=360,
+            height=360,
+            tools=["hover"],
+        )
         # Phase image (keep in [-pi, pi])
         phase = hv.Image(th_np, kdims=["x", "y"], vdims=["theta"]).opts(
             title="Phase θ",
@@ -149,9 +170,15 @@ class PCCExplorer(param.Parameterized):
                 height=360,
                 aspect="equal",
             )
-            layout = (amp + phase + plane).cols(3)
+            layout = (
+                (amp + phase + plane + amp_hist + phase_hist)
+                .cols(3)
+                .opts(shared_axes=False)
+            )
         else:
-            layout = (amp + phase).cols(2)
+            layout = (
+                (amp + phase + amp_hist + phase_hist).cols(2).opts(shared_axes=False)
+            )
 
         # quick numeric sanity panel
         z_abs = np.abs(z_np)
@@ -164,10 +191,11 @@ class PCCExplorer(param.Parameterized):
 - `|z|.mean`: {z_abs.mean():.4f} | `|z|.std`: {z_abs.std():.4f}
 - `angle(z)` mean: {z_ang.mean():.4f} | std: {z_ang.std():.4f}
 - `uniformize_phase_hist`: {cfg.uniformize_phase_hist}
+- `phase coherence index`: {phase_coherence_index(torch.from_numpy(th_np)):.4f}
 """.strip()
         )
 
-        return pn.Column(layout, stats)
+        return pn.Row(layout, stats)
 
 
 # -----------------------------

@@ -1,0 +1,11 @@
+experiment:
+  name: exp_00
+  description: "Baseline experiment with ComplexCNN on PCC dataset."  
+
+pcc: !include configs/data/data_00.yaml 
+hyperparams: !include configs/hyperparams/hyp_00.yaml
+
+train:
+  model: "complex"
+  normalize: true
+  

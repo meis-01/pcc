@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pcc_benchmark"
+version = "0.1.0"
+description = "Benchmarking tools for PCC"
+authors = [
+    { name = "Your Name", email = "your@email.com" }
+]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    # Add your runtime dependencies here, e.g. "numpy", "torch"
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["pcc"]

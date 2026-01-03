@@ -1,0 +1,15 @@
+N: 128
+amp_radial_decay: 2.2
+amp_smooth_sigma: 6.0
+amp_range: [0.7, 1.4]
+
+phase_smooth_sigma: 2.0
+incoh_highpass_sigma: 16.0
+incoh_scale: 0.2
+global_phase: true
+uniformize_phase_hist: true
+
+translate_px: 16
+rotate_deg: 30.0
+noise_std: 0.1
+renorm_amp: false 
