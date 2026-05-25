@@ -1,6 +1,6 @@
 # PCC Sampler
 
-`pcc-sampler` (Phase Coherence Comlex - Sampler) generates synthetic complex-valued image samples where the label is
+`pcc-sampler` (Phase Coherence Complex - Sampler) generates synthetic complex-valued image samples where the label is
 defined by spatial phase coherence rather than amplitude cues.
 
 The package is intentionally small: config in, deterministic complex samples out.
