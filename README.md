@@ -1,24 +1,38 @@
 # PCC Sampler
 
-`pcc-sampler` generates synthetic complex-valued image samples where the label is
+`pcc-sampler` (Phase Coherence Comlex - Sampler) generates synthetic complex-valued image samples where the label is
 defined by spatial phase coherence rather than amplitude cues.
 
 The package is intentionally small: config in, deterministic complex samples out.
-It is meant to be imported by experiments that compare real-valued and
-complex-valued neural networks.
+It is meant to be imported by experiments that study complex-valued neural networks.
 
 ## Install
 
-From another local project, install this repo in editable mode:
+The examples below use the `uv` command. If `uv` is installed but not on PATH,
+run the same commands as `python -m uv ...`.
+
+Install the project environment with uv:
 
 ```powershell
-pip install -e C:\Users\meisa\Projects\pcc
+uv sync
 ```
 
-Or install from a Git URL after publishing the branch:
+Run a quick import check:
+
+```powershell
+uv run python -c "from pcc import load_default_config; print(load_default_config())"
+```
+
+From another local uv project, add this repo in editable mode:
+
+```powershell
+uv add --editable C:\Users\meisa\Projects\pcc
+```
+
+Or add it from a Git URL after publishing the repo:
 
 ```bash
-pip install git+https://github.com/<owner>/<repo>.git
+uv add "pcc-sampler @ git+https://github.com/<owner>/<repo>.git"
 ```
 
 ## Python Usage
