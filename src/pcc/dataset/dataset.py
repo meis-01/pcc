@@ -1,5 +1,6 @@
-from dataclasses import dataclass
 import math
+from typing import Optional
+
 import torch
 from torch.utils.data import Dataset
 from pcc.params import PCCConfig
@@ -7,7 +8,7 @@ from pcc.params import PCCConfig
 # ---------------- RNG helpers ----------------
 
 
-def _make_generator(base_seed: int, idx: int, device="cpu") -> torch.Generator:
+def make_generator(base_seed: int, idx: int, device="cpu") -> torch.Generator:
     g = torch.Generator(device=device)
     # A simple bijection of (base_seed, idx). Works fine in practice.
     # 1_000_003 is a large prime. Avoids collisions for small idx over datasets
@@ -109,8 +110,11 @@ def _apply_translate(img: torch.Tensor, tx: int, ty: int):
 # ---------------- Deterministic sample ----------------
 
 
-def make_sample(cfg: PCCConfig, y: int, device="cpu", g: torch.Generator | None = None):
-    assert g is not None, "Pass a torch.Generator for determinism."
+def make_sample(
+    cfg: PCCConfig, y: int, device="cpu", g: Optional[torch.Generator] = None
+):
+    if g is None:
+        raise ValueError("Pass a torch.Generator for deterministic sample generation.")
 
     N = cfg.N
     dtype = torch.float32
@@ -165,12 +169,20 @@ def make_sample(cfg: PCCConfig, y: int, device="cpu", g: torch.Generator | None 
     if cfg.translate_px > 0:
         tx = int(
             torch.randint(
-                -cfg.translate_px, cfg.translate_px + 1, (1,), generator=g
+                -cfg.translate_px,
+                cfg.translate_px + 1,
+                (1,),
+                device=device,
+                generator=g,
             ).item()
         )
         ty = int(
             torch.randint(
-                -cfg.translate_px, cfg.translate_px + 1, (1,), generator=g
+                -cfg.translate_px,
+                cfg.translate_px + 1,
+                (1,),
+                device=device,
+                generator=g,
             ).item()
         )
         A = _apply_translate(A, tx, ty)
@@ -194,6 +206,13 @@ def make_sample(cfg: PCCConfig, y: int, device="cpu", g: torch.Generator | None 
     return z.to(torch.complex64), A.to(torch.float32), theta.to(torch.float32)
 
 
+def make_deterministic_sample(
+    cfg: PCCConfig, y: int, seed: int = 0, idx: int = 0, device="cpu"
+):
+    g = make_generator(seed, idx, device=device)
+    return make_sample(cfg, y=y, device=device, g=g)
+
+
 # ---------------- Dataset ----------------
 
 
@@ -208,7 +227,7 @@ class PCCDataset(Dataset):
         return self.size
 
     def __getitem__(self, idx):
-        g = _make_generator(self.seed, idx, device="cpu")
-        y = int(torch.randint(0, 2, (1,), generator=g).item())
-        z, A, theta = make_sample(self.cfg, y=y, device="cpu", g=g)
-        return z, A, theta, torch.tensor(y, dtype=torch.long)
+        g = make_generator(self.seed, idx, device=self.device)
+        y = int(torch.randint(0, 2, (1,), device=self.device, generator=g).item())
+        z, A, theta = make_sample(self.cfg, y=y, device=self.device, g=g)
+        return z, A, theta, torch.tensor(y, dtype=torch.long, device=self.device)

@@ -12,4 +12,4 @@ uniformize_phase_hist: true
 translate_px: 16
 rotate_deg: 30.0
 noise_std: 0.1
-renorm_amp: false 
+renorm_amp: false

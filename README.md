@@ -1,51 +1,96 @@
-# Phase-Coherence Classification (PCC) Benchmark — MRI-ish Complex Fields
+# PCC Sampler
 
-This project generates a synthetic complex-valued image benchmark where **amplitude cues are controlled** and the label depends on **spatial phase coherence**.
-It is designed to test whether **complex-valued neural networks** learn phase-relational structure more naturally than real-valued baselines.
+`pcc-sampler` generates synthetic complex-valued image samples where the label is
+defined by spatial phase coherence rather than amplitude cues.
 
-## Task
+The package is intentionally small: config in, deterministic complex samples out.
+It is meant to be imported by experiments that compare real-valued and
+complex-valued neural networks.
 
-Binary classification:
+## Install
 
-- **Class 0 (coherent):** smooth phase field
-- **Class 1 (incoherent):** same base phase + high-frequency phase scramble
+From another local project, install this repo in editable mode:
 
-Key properties:
-
-- **MRI-ish amplitude envelope (A3):** radial decay + smooth tissue-like variation
-- **Global phase shift** applied (absolute phase irrelevant)
-- **Per-sample phase histogram equalization** (marginal phase distribution matched across classes)
-- Label signal is **only in spatial phase relations**
-
-## Models included
-
-- **mag:** real CNN on magnitude only |z|
-- **R2:** real CNN on real and imaginary components as input channels
-- **R2c:** real CNN on real and imaginary components as input channels constraind on convolution similar to complex (preserves rotation)
-- **cossin (real-fair):** real CNN on (cos θ, sin θ) (+ optional amplitude channel)
-- **complex:** complex CNN using complex convolutions + modReLU, trained on complex input z
-
-## Quickstart
-
-### 1) Create env
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+```powershell
+pip install -e C:\Users\meisa\Projects\pcc
 ```
 
-### 2) Train runs
-
-The experiments are stored in experiments forlder and the train.train module should be called with the patht to the experiment yaml file. 
-
-To run the default training:
+Or install from a Git URL after publishing the branch:
 
 ```bash
-python -m pcc.train.main
+pip install git+https://github.com/<owner>/<repo>.git
 ```
 
-## Notes
+## Python Usage
 
-- This benchmark is intentionally synthetic but MRI-inspired: complex fields with controlled amplitude and phase behavior.
-- If you want to mimic k-space effects later, add a Fourier step + sampling mask before reconstruction; the generator is modular.
+```python
+from pcc import PCCConfig, PCCDataset
+
+cfg = PCCConfig(
+    N=128,
+    phase_smooth_sigma=2.0,
+    incoh_highpass_sigma=16.0,
+    incoh_scale=0.2,
+    uniformize_phase_hist=True,
+)
+
+dataset = PCCDataset(size=10_000, cfg=cfg, seed=42)
+z, amplitude, phase, y = dataset[0]
+```
+
+Returned values:
+
+- `z`: complex-valued sample, shape `(N, N)`, dtype `torch.complex64`
+- `amplitude`: amplitude field, shape `(N, N)`, dtype `torch.float32`
+- `phase`: phase field, shape `(N, N)`, dtype `torch.float32`
+- `y`: label tensor, where `0` is coherent and `1` is incoherent
+
+## YAML Config Usage
+
+Create a YAML file:
+
+```yaml
+N: 128
+amp_radial_decay: 2.2
+amp_smooth_sigma: 6.0
+amp_range: [0.7, 1.4]
+
+phase_smooth_sigma: 2.0
+incoh_highpass_sigma: 16.0
+incoh_scale: 0.2
+global_phase: true
+uniformize_phase_hist: true
+
+translate_px: 16
+rotate_deg: 30.0
+noise_std: 0.1
+renorm_amp: false
+```
+
+Load it directly:
+
+```python
+from pcc import dataset_from_yaml
+
+dataset = dataset_from_yaml("configs/pcc_phase.yaml", size=50_000, seed=7)
+```
+
+You can also load the built-in default:
+
+```python
+from pcc import PCCDataset, load_default_config
+
+cfg = load_default_config()
+dataset = PCCDataset(size=1_000, cfg=cfg, seed=0)
+```
+
+## Single Sample
+
+```python
+from pcc import PCCConfig, make_deterministic_sample
+
+cfg = PCCConfig()
+z, amplitude, phase = make_deterministic_sample(cfg, y=0, seed=123, idx=0)
+```
+
+The same `(seed, idx, y, config)` combination produces the same sample.

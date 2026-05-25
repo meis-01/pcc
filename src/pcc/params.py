@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass
 
 
 @dataclass
@@ -19,22 +19,10 @@ class PCCConfig:
     noise_std: float = 0.1
     renorm_amp: bool = False
 
+    def __post_init__(self):
+        if len(self.amp_range) != 2:
+            raise ValueError("amp_range must contain exactly two values.")
+        self.amp_range = tuple(float(v) for v in self.amp_range)
 
-@dataclass
-class HYPERPARAMS:
-    train_size: int = 1000
-    val_size: int = 200
-    test_size: int = 200
-    batch_size: int = 32
-    epochs: int = 2
-    lr: float = 2e-3
-    seed: int = 0
-    run_dir: str = "runs"
-
-
-@dataclass
-class TrainConfig:
-    pcc: PCCConfig = field(default_factory=PCCConfig)
-    hyperparams: HYPERPARAMS = field(default_factory=HYPERPARAMS)
-    model: str = "complex"
-    normalize: bool = True
+    def as_dict(self) -> dict:
+        return asdict(self)

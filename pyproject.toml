@@ -3,18 +3,24 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pcc_benchmark"
+name = "pcc-sampler"
 version = "0.1.0"
-description = "Benchmarking tools for PCC"
+description = "Synthetic complex-valued phase-coherence sample generator"
 authors = [
     { name = "Meisam Ashraf", email = "meisash@gmail.com" }
 ]
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    # Add your runtime dependencies here, e.g. "numpy", "torch"
+    "pyyaml>=6.0",
+    "torch>=2.2",
 ]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-packages = ["pcc"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pcc = ["configs/*.yaml"]
