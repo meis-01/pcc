@@ -54,10 +54,10 @@ z, amplitude, phase, y = dataset[0]
 
 Returned values:
 
-- `z`: complex-valued sample, shape `(N, N)`, dtype `torch.complex64`
-- `amplitude`: amplitude field, shape `(N, N)`, dtype `torch.float32`
-- `phase`: phase field, shape `(N, N)`, dtype `torch.float32`
-- `y`: label tensor, where `0` is coherent and `1` is incoherent
+- `z`: complex-valued sample, shape `(N, N)`, dtype `numpy.complex64`
+- `amplitude`: amplitude field, shape `(N, N)`, dtype `numpy.float32`
+- `phase`: phase field, shape `(N, N)`, dtype `numpy.float32`
+- `y`: label scalar, where `0` is coherent and `1` is incoherent
 
 ## YAML Config Usage
 

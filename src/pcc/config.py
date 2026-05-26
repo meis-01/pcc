@@ -39,7 +39,5 @@ def load_default_config() -> PCCConfig:
     return _config_from_mapping(yaml.safe_load(default_yaml) or {})
 
 
-def dataset_from_yaml(
-    path: Union[str, Path], size: int, seed: int = 0, device="cpu"
-) -> PCCDataset:
-    return PCCDataset(size=size, cfg=load_pcc_config(path), seed=seed, device=device)
+def dataset_from_yaml(path: Union[str, Path], size: int, seed: int = 0) -> PCCDataset:
+    return PCCDataset(size=size, cfg=load_pcc_config(path), seed=seed)
