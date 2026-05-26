@@ -108,3 +108,41 @@ z, amplitude, phase = make_deterministic_sample(cfg, y=0, seed=123, idx=0)
 ```
 
 The same `(seed, idx, y, config)` combination produces the same sample.
+
+## API Parameters
+
+### `PCCConfig`
+
+`PCCConfig` controls the image size, amplitude field, phase field, nuisance
+transforms, and complex noise added to each sample.
+
+| Parameter | Default | Description |
+| --- | --- | --- |
+| `N` | `128` | Height and width of each square sample. Returned arrays have shape `(N, N)`. |
+| `amp_radial_decay` | `2.2` | Strength of the radial amplitude falloff from the center toward the image edges. Larger values make the amplitude fade faster. |
+| `amp_smooth_sigma` | `6.0` | Gaussian smoothing scale for the random amplitude texture. Larger values produce smoother amplitude fields. |
+| `amp_range` | `(0.7, 1.4)` | Minimum and maximum range used to rescale the smoothed amplitude texture before radial weighting. |
+| `phase_smooth_sigma` | `2.0` | Gaussian smoothing scale for the coherent phase field. Larger values produce more slowly varying phase. |
+| `incoh_highpass_sigma` | `16.0` | Low-pass scale removed from incoherent phase noise. Larger values leave broader high-frequency phase variations. |
+| `incoh_scale` | `0.2` | Standard-deviation scale of the high-pass phase perturbation added to incoherent samples. |
+| `global_phase` | `True` | Adds one random global phase offset to each sample when enabled. |
+| `uniformize_phase_hist` | `True` | Remaps phase values by rank so each sample has an approximately uniform phase histogram. This reduces label leakage through phase histogram differences. |
+| `translate_px` | `0` | Maximum integer translation, in pixels, sampled independently for x and y. A value of `16` samples shifts from `-16` to `16`. |
+| `rotate_deg` | `0.0` | Maximum absolute rotation angle in degrees. A value of `30.0` samples rotations from `-30` to `30` degrees. |
+| `noise_std` | `0.1` | Standard deviation of complex Gaussian noise added to `z`. Set to `0` for noiseless samples. |
+| `renorm_amp` | `False` | If enabled after noise is added, rescales `z` so its mean amplitude matches the pre-noise amplitude field. |
+
+### Dataset And Sampling Arguments
+
+| Function or class | Parameter | Description |
+| --- | --- | --- |
+| `PCCDataset(size, cfg, seed=0)` | `size` | Number of deterministic items exposed by the dataset. |
+| `PCCDataset(size, cfg, seed=0)` | `cfg` | A `PCCConfig` instance that defines how samples are generated. |
+| `PCCDataset(size, cfg, seed=0)` | `seed` | Base seed. The dataset combines this with the item index so `dataset[i]` is repeatable. |
+| `make_deterministic_sample(cfg, y, seed=0, idx=0)` | `cfg` | A `PCCConfig` instance. |
+| `make_deterministic_sample(cfg, y, seed=0, idx=0)` | `y` | Label to generate: `0` for coherent phase, `1` for incoherent phase. |
+| `make_deterministic_sample(cfg, y, seed=0, idx=0)` | `seed` | Base seed for deterministic generation. |
+| `make_deterministic_sample(cfg, y, seed=0, idx=0)` | `idx` | Index mixed with `seed` to produce a repeatable per-sample random generator. |
+| `dataset_from_yaml(path, size, seed=0)` | `path` | YAML file containing `PCCConfig` fields, either at the top level or under a `pcc:` key. |
+| `dataset_from_yaml(path, size, seed=0)` | `size` | Number of deterministic dataset items to expose. |
+| `dataset_from_yaml(path, size, seed=0)` | `seed` | Base seed used by the returned dataset. |

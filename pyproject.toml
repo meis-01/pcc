@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pcc-sampler"
-version = "0.2.0"
+version = "0.2.1"
 description = "Synthetic complex-valued phase-coherence sample generator"
 authors = [
     { name = "Meisam Ashraf", email = "meisash@gmail.com" }
